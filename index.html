@@ -1,0 +1,258 @@
+<html>
+    <!-- 
+        Copyright 2013 Jose Rojas
+        Author: Jose Rojas 
+    -->
+    <head>
+        <style>
+body
+{
+    position: relative;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.full
+{
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.imgcontain
+{
+    position: absolute;
+    background: white;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.center_outer
+{
+    position: absolute;
+    left: 50%;   
+    top: 50%;
+}
+
+.center_inner
+{
+    position: relative;
+    left: -50%;   
+    top: -50%;
+}
+
+.hide
+{
+    opacity: 0;
+}
+
+.show
+{
+    opacity: 100;
+}
+
+.anim_fade
+{
+    transition-property: opacity;
+    transition-duration: 3s;
+    opacity: 0;
+}
+
+.anim_show
+{
+    transition-property: opacity;
+    transition-duration: 3s;
+    opacity: 100;
+}
+        </style>
+    </head>
+    <body>  
+        <div id="image_next" class="full imgcontain hide" ></div>
+        <div id="image_curr" class="full imgcontain show" ></div>
+            <!-- on* is not the most modernly accepted way of attaching events, but it works well across browsers for simple sites -->
+        <div class="center_outer">
+            <div class="center_inner">                 
+                <select id="selector" onchange="Carousel.changeImageSet(this)"></select>
+            </div>
+        </div>
+    </body>
+    <script>
+function qs(key) {
+    key = key.replace(/[*+?^$.\[\]{}()|\\\/]/g, "\\$&"); // escape RegEx meta chars
+    var match = location.search.match(new RegExp("[?&]"+key+"=([^&]+)(&|$)"));
+    return match && decodeURIComponent(match[1].replace(/\+/g, " "));
+}
+
+var Carousel = (function() {
+    
+    var self = function Carousel() { };    
+   
+    self.TIMER = 5000; //timeout before beginning the next image change
+    self.SWAP_TIMER = 3000; //timeout before swapping the current with the next image, should match the CSS transition timeout
+    self.imageset = null; //the current image set
+
+    /* These can be loaded dynamically, but will mock them here */
+    self.imageSets = [
+        { name: 'Los Angeles', images: [
+            'http://www.uni-mainz.de/FB/Biologie/Zoologie/abt1/eisenbeis/LosAngeles_2002a_Copyright.jpg',
+            'http://www.bringingbackbroadway.com/stellent/groups/electedofficials/@bbb_contributor/documents/contributor_web_content/lacityp_023150.jpg',
+            'http://www.dailyiso.com/wp-content/uploads/2012/07/Downtown_LosAngelesnightfreeway_GrimmTom+Michele.jpg',
+            'http://img0.svstatic.com/wallpapers/c61dd4b6cfe68c4dd52be03634b3ed4d_large.jpeg'
+        ] },
+        { name: 'New York', images: [ 
+            'http://younggov.org/wp-content/uploads/2012/01/newyorkcity2.jpg',
+            'http://rack.1.mshcdn.com/media/ZgkyMDEyLzEyLzA0L2Q2L25ld3lvcmtjaXR5LmI2Si5qcGcKcAl0aHVtYgk5NTB4NTM0IwplCWpwZw/c9e8f7ad/c4c/new-york-city-s-getting-a-tech-upgrade-66f014f1fe.jpg',
+            'http://www.peace.edu/assets/uploads/event_images/1360353945NYC.jpg',
+            'http://www.dealangel.com/media/seo_images/brooklyn_bridge_at_night_new_york_1.jpg'
+        ] },
+        { name: 'San Francisco', images: [ 
+            'http://www.ban.org/wp-content/uploads/2012/02/sanfrancisco.jpg',
+            'http://www.eveleblog.com/wp-content/uploads/2013/04/1.jpg',
+            'http://alumni.gsas.nyu.edu/props/IO/28795/126/SanFran.jpg',
+            'http://famouswonders.com/wp-content/uploads/2009/04/san-francisco-at-night.jpg'
+        ] },
+        { name: 'Vancouver', images: [ 
+            'http://cupc2012.phas.ubc.ca/common/assets/Vancouver/aerial.jpg',
+            'http://www.sustainabilityninja.com/wp-content/uploads/2009/04/vancouver.jpg',
+            'http://www.regent-college.edu/system/cms/files/508/files/original/bg-img-vancouver.jpg',
+            'http://t0.gstatic.com/images?q=tbn:ANd9GcRlO6CTs0wnUDGjG7UkSTrmsduKg7bCz9U4UAkhJzPs4xTqU4lK'
+        ] },
+        { name: 'No images', images: null },
+        { name: 'Invalid images', images: [
+            'http://www.ban.org/wp-content/uploads/2012/02/sanfrancisco.jpg',
+            '1.jpg',
+            'http://alumni.gsas.nyu.edu/props/IO/28795/126/SanFran.jpg',
+            '2.jpg'
+        ] },
+    ];
+
+    //load the selector options
+    self.loadSelector = function (selector, imageSets)
+    {
+        if (!imageSets)
+            return;
+
+        var opts = '<option value="-1">Please select an option</option>';
+        for (var i = 0; i < imageSets.length; i++)
+        {
+            opts += '<option value="' + i + '">' + imageSets[i].name + '</option>';        
+        }
+        selector.innerHTML = opts;
+    };
+
+    self.changeImageSet = function (node)
+    {
+        var val = parseInt(node.value);
+        if (val >= 0)
+        {
+            self.imageset = self.imageSets[val]; 
+            self.imageset.curpos = -1;
+        }
+        else
+        {
+            self.imageset = null; //turn off carousel
+        }
+        
+        //begin loading the images
+        var loadedImages = [];
+        self.imageset.loadedImages = loadedImages;
+        var imageList = self.imageset.images;
+
+        if (imageList != null)
+        {
+            for (var i = 0; i < imageList.length; i++)
+            {            
+                var img = new Image();    
+                img.onload = function ()
+                {
+                    //insert them into the loaded list
+                    loadedImages.push(this);
+                    if (loadedImages.length == 1 && !self.runningCarousel)
+                    {
+                        self.fireCarousel(); //kick start the carousel
+                    }
+                };
+                img.src = imageList[i];
+            }
+        }
+    }
+
+    self.fireCarousel = function()
+    {
+        self.runningCarousel = true;
+        if (self.imageset != null && self.imageset.loadedImages.length > 0)
+        {    
+            self.imageset.curpos++;
+            if (self.imageset.curpos >= self.imageset.loadedImages.length)
+                self.imageset.curpos = 0;
+
+            //show the image
+            var success = self.showImage(self.imageset.loadedImages[self.imageset.curpos], true);
+
+            if (!success)
+                self.imageset.curpos--; //try again
+
+            //restart carousel
+            window.setTimeout(self.fireCarousel, success ? self.TIMER : 10);
+            if (success)
+                window.setTimeout(self.swapImages, self.SWAP_TIMER);
+        }
+        else 
+        {
+            //reset the images
+            self.showImage(null, true);        
+            window.setTimeout(self.swapImages, self.SWAP_TIMER);
+            self.runningCarousel = false;
+        }
+    }
+
+    self.showImage = function(img, fade)
+    {
+        var src = img != null ? 'url('+ img.src + ')' : '';
+
+        var img1 = document.getElementById('image_next');
+        var img2 = document.getElementById('image_curr');
+
+        self.setImage(img1, src);
+        //assumes CSS3 support    
+        if (fade)
+        {
+            img2.className += ' anim_fade';
+            img1.className += ' anim_show';
+        }
+        return img != null;
+    }
+
+    self.setImage = function(node, src)
+    {
+        if (!src)
+            node.style.backgroundColor = 'white';    
+        node.style.backgroundImage = src;
+        if (!self.noScale)
+            node.style.backgroundSize = 'contain'; //a little cheat... you can also set the width/height aspect ratio directly.
+    }
+
+    self.swapImages = function()
+    {
+        var img1 = document.getElementById('image_next');
+        var img2 = document.getElementById('image_curr');
+
+        self.setImage(img2, img1.style.backgroundImage);
+        self.setImage(img1, '');
+
+        img1.className = 'full imgcontain hide'; //reset animation    
+        img2.className = 'full imgcontain show'; //reset animation
+    }
+
+    self.noScale = qs('noscale') == 'true';
+
+    var selector = document.getElementById('selector');
+    self.loadSelector(selector, self.imageSets);
+
+    return self;
+})();
+
+    </script>
+</html>
