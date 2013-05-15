@@ -125,7 +125,7 @@ var Carousel = (function() {
             '1.jpg',
             'http://alumni.gsas.nyu.edu/props/IO/28795/126/SanFran.jpg',
             '2.jpg'
-        ] },
+        ] }
     ];
 
     //load the selector options
@@ -134,12 +134,19 @@ var Carousel = (function() {
         if (!imageSets)
             return;
 
-        var opts = '<option value="-1">Please select an option</option>';
+        var option = document.createElement('option');
+        option.setAttribute("value", "-1");
+        option.innerText = "Please select an option";
+        selector.appendChild(option);
+        
         for (var i = 0; i < imageSets.length; i++)
         {
-            opts += '<option value="' + i + '">' + imageSets[i].name + '</option>';        
+            option = document.createElement('option');
+            option.setAttribute("value", i);
+            option.innerText = imageSets[i].name;
+            selector.appendChild(option);
         }
-        selector.innerHTML = opts;
+        selector.style.width = 'auto'; //do this to fix IE glitch
     };
 
     self.changeImageSet = function (node)
