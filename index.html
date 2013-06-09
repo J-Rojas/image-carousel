@@ -176,14 +176,20 @@ var Carousel = (function() {
                 var img = new Image();    
                 img.onload = function ()
                 {
-                    //insert them into the loaded list
-                    loadedImages.push(this);
-                    if (loadedImages.length == 1 && !self.runningCarousel)
+                    if (!this._loaded)
                     {
-                        self.fireCarousel(); //kick start the carousel
+                        //insert them into the loaded list
+                        loadedImages.push(this);
+                        if (loadedImages.length == 1 && !self.runningCarousel)
+                        {
+                            self.fireCarousel(); //kick start the carousel
+                        }
                     }
+                    this._loaded=true;
                 };
                 img.src = imageList[i];
+                if (img.complete) //if cached and in case onload() doesn't fire
+                    img.onload();
             }
         }
     }
